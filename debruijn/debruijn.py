@@ -27,13 +27,13 @@ import textwrap
 import matplotlib.pyplot as plt
 matplotlib.use("Agg")
 
-__author__ = "Your Name"
+__author__ = "Aurélien PETIT"
 __copyright__ = "Universite Paris Diderot"
-__credits__ = ["Your Name"]
+__credits__ = ["Aurélien PETIT"]
 __license__ = "GPL"
 __version__ = "1.0.0"
-__maintainer__ = "Your Name"
-__email__ = "your@email.fr"
+__maintainer__ = "Aurélien PETIT"
+__email__ = "ap251099@gmail.com"
 __status__ = "Developpement"
 
 def isfile(path): # pragma: no cover
@@ -81,7 +81,16 @@ def read_fastq(fastq_file):
     :param fastq_file: (str) Path to the fastq file.
     :return: A generator object that iterate the read sequences. 
     """
-    pass
+
+    with open(fastq_file, 'r') as f_in:
+        lines = [line.strip() for line in f_in]
+        num_records = len(lines) // 4
+        
+        for i in range(num_records):
+            sequence = lines[i * 4 + 1]
+            
+            yield sequence
+    
 
 
 def cut_kmer(read, kmer_size):
@@ -90,7 +99,10 @@ def cut_kmer(read, kmer_size):
     :param read: (str) Sequence of a read.
     :return: A generator object that iterate the kmers of of size kmer_size.
     """
-    pass
+    for i in range(len(read) - kmer_size + 1):
+        kmer = read[i:i + kmer_size]
+        yield kmer
+
 
 
 def build_kmer_dict(fastq_file, kmer_size):
@@ -99,7 +111,16 @@ def build_kmer_dict(fastq_file, kmer_size):
     :param fastq_file: (str) Path to the fastq file.
     :return: A dictionnary object that identify all kmer occurrences.
     """
-    pass
+    kmer_dict = {}
+
+    for read in read_fastq(fastq_file):
+        for kmer in cut_kmer(read, kmer_size):
+            if kmer in kmer_dict:
+                kmer_dict[kmer] += 1
+            else:
+                kmer_dict[kmer] = 1
+    
+    return kmer_dict
 
 
 def build_graph(kmer_dict):
