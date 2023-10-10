@@ -129,7 +129,14 @@ def build_graph(kmer_dict):
     :param kmer_dict: A dictionnary object that identify all kmer occurrences.
     :return: A directed graph (nx) of all kmer substring and weight (occurrence).
     """
-    pass
+    DG = nx.DiGraph()
+    for kmer, weight in kmer_dict.items():
+        prefix = kmer[:-1]
+        suffix = kmer[1:]
+
+        DG.add_edge(prefix, suffix, weight=weight)
+    
+    return DG
 
 
 def remove_paths(graph, path_list, delete_entry_node, delete_sink_node):
@@ -208,7 +215,14 @@ def get_starting_nodes(graph):
     :param graph: (nx.DiGraph) A directed graph object
     :return: (list) A list of all nodes without predecessors
     """
-    pass
+    starting_nodes = []
+    
+    for node in graph.nodes():
+        predecessors = list(graph.predecessors(node))
+        if not predecessors:
+            starting_nodes.append(node)
+    
+    return starting_nodes
 
 def get_sink_nodes(graph):
     """Get nodes without successors
@@ -216,7 +230,14 @@ def get_sink_nodes(graph):
     :param graph: (nx.DiGraph) A directed graph object
     :return: (list) A list of all nodes without successors
     """
-    pass
+    sink_nodes = []
+    
+    for node in graph.nodes():
+        successors = list(graph.successors(node))
+        if not successors:
+            sink_nodes.append(node)
+    
+    return sink_nodes
 
 def get_contigs(graph, starting_nodes, ending_nodes):
     """Extract the contigs from the graph
@@ -226,7 +247,21 @@ def get_contigs(graph, starting_nodes, ending_nodes):
     :param ending_nodes: (list) A list of nodes without successors
     :return: (list) List of [contiguous sequence and their length]
     """
-    pass
+    contigs = []
+
+    for start_node in starting_nodes:
+        for end_node in ending_nodes:
+            if nx.has_path(graph, start_node, end_node):
+                for path in nx.all_simple_paths(graph, start_node, end_node):
+                    contig = start_node
+                    for node in path[1:]:
+                        contig += node[-1]
+                    length = len(contig)
+                    if length > 0:
+                        contigs.append((contig, length))
+
+    return contigs
+
 
 def save_contigs(contigs_list, output_file):
     """Write all contigs in fasta format
