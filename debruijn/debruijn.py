@@ -149,7 +149,13 @@ def remove_paths(graph, path_list, delete_entry_node, delete_sink_node):
     :param delete_sink_node: (boolean) True->We remove the last node of a path
     :return: (nx.DiGraph) A directed graph object
     """
-    pass
+    for path in path_list:
+        graph.remove_nodes_from(path[1:-1])
+        if delete_entry_node:
+            graph.remove_node(path[0])
+        if delete_sink_node:
+            graph.remove_node(path[-1])
+    return graph
 
 
 def select_best_path(graph, path_list, path_length, weight_avg_list, 
@@ -158,13 +164,26 @@ def select_best_path(graph, path_list, path_length, weight_avg_list,
 
     :param graph: (nx.DiGraph) A directed graph object
     :param path_list: (list) A list of path
-    :param path_length_list: (list) A list of length of each path
+    :param path_length: (list) A list of length of each path
     :param weight_avg_list: (list) A list of average weight of each path
     :param delete_entry_node: (boolean) True->We remove the first node of a path 
     :param delete_sink_node: (boolean) True->We remove the last node of a path
     :return: (nx.DiGraph) A directed graph object
     """
-    pass
+    weight_stdev = statistics.stdev(weight_avg_list)
+    if weight_stdev > 0:
+        best_path_index = weight_avg_list.index(max(weight_avg_list))
+        del path_list[best_path_index]
+    else:
+        length_stdev = statistics.stdev(path_length)
+        if length_stdev > 0:
+            longest_path_index = path_length.index(max(path_length))
+            del path_list[longest_path_index]
+        else:
+            best_path_index = random.randint(0, len(path_list) - 1)
+            del path_list[best_path_index]
+
+    return remove_paths(graph, path_list, delete_entry_node, delete_sink_node)
 
 def path_average_weight(graph, path):
     """Compute the weight of a path
@@ -183,7 +202,15 @@ def solve_bubble(graph, ancestor_node, descendant_node):
     :param descendant_node: (str) A downstream node in the graph
     :return: (nx.DiGraph) A directed graph object
     """
-    pass
+
+    paths = list(nx.all_simple_paths(graph, ancestor_node, descendant_node))
+    list_weight = []
+    list_length = []
+    for path in paths:
+        list_weight.append(path_average_weight(graph,path))
+        list_length.append(len(path))
+
+    return select_best_path(graph, paths, list_length, list_weight, delete_entry_node=False, delete_sink_node=False)
 
 def simplify_bubbles(graph):
     """Detect and explode bubbles
@@ -191,7 +218,23 @@ def simplify_bubbles(graph):
     :param graph: (nx.DiGraph) A directed graph object
     :return: (nx.DiGraph) A directed graph object
     """
-    pass
+    bubble=False
+    for node in graph.nodes():
+        predecessors = list(graph.predecessors(node))
+        if len(predecessors) > 1:
+            for i in range(len(predecessors) - 1):
+                for j in range(i + 1, len(predecessors)):
+                    ancestor_node = nx.lowest_common_ancestor(graph, predecessors[i], predecessors[j])
+                    if ancestor_node is not None:
+                        bubble=True
+                        break
+
+        if bubble:
+            break
+    if bubble:
+        graph=simplify_bubbles(solve_bubble(graph, ancestor_node, node))
+    
+    return graph
 
 def solve_entry_tips(graph, starting_nodes):
     """Remove entry tips
@@ -216,12 +259,12 @@ def get_starting_nodes(graph):
     :return: (list) A list of all nodes without predecessors
     """
     starting_nodes = []
-    
     for node in graph.nodes():
         predecessors = list(graph.predecessors(node))
-        if not predecessors:
+        #print(predecessors)
+        #print(node)
+        if len(predecessors) == 0:
             starting_nodes.append(node)
-    
     return starting_nodes
 
 def get_sink_nodes(graph):
@@ -231,12 +274,11 @@ def get_sink_nodes(graph):
     :return: (list) A list of all nodes without successors
     """
     sink_nodes = []
-    
     for node in graph.nodes():
         successors = list(graph.successors(node))
-        if not successors:
+        #print(successors)
+        if len(successors) == 0:
             sink_nodes.append(node)
-    
     return sink_nodes
 
 def get_contigs(graph, starting_nodes, ending_nodes):
@@ -253,12 +295,12 @@ def get_contigs(graph, starting_nodes, ending_nodes):
         for end_node in ending_nodes:
             if nx.has_path(graph, start_node, end_node):
                 for path in nx.all_simple_paths(graph, start_node, end_node):
-                    contig = start_node
+                    contig = ''
+                    contig += path[0]
                     for node in path[1:]:
                         contig += node[-1]
                     length = len(contig)
-                    if length > 0:
-                        contigs.append((contig, length))
+                    contigs.append((contig, length))
 
     return contigs
 
@@ -269,7 +311,11 @@ def save_contigs(contigs_list, output_file):
     :param contig_list: (list) List of [contiguous sequence and their length]
     :param output_file: (str) Path to the output file
     """
-    pass
+    with open(output_file, "w") as f_out:
+        for i, (contig, length) in enumerate(contigs_list):
+            header = f">contig_{i} len={length}\n"
+            formatted_contig = textwrap.fill(contig, width=80) + "\n"
+            f_out.write(header + formatted_contig)
 
 
 def draw_graph(graph, graphimg_file): # pragma: no cover
@@ -311,7 +357,17 @@ def main(): # pragma: no cover
     # Plot the graph
     # if args.graphimg_file:
     #     draw_graph(graph, args.graphimg_file)
-
-
+    '''
+    dict_reads = build_kmer_dict(args.fastq_file, args.kmer_size)
+    #print(dict_reads)
+    graph = build_graph(dict_reads)
+    #print(graph)
+    contigs = get_contigs(graph, get_starting_nodes(graph), get_sink_nodes(graph))
+    #print(contigs)
+    #print(get_starting_nodes(graph))
+    #print(get_sink_nodes(graph))
+    save_contigs(contigs, args.output_file)
+    '''
+    
 if __name__ == '__main__': # pragma: no cover
     main()
